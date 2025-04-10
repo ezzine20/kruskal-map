@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kruskal - Carte et Algorithme</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+    #menu, #map-container {
+      display: none;
+    }
+    #menu {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: linear-gradient(135deg, #e0f7fa, #80deea);
+      padding: 20px;
+      animation: fadeIn 1s ease-out;
+    }
+    h1 {
+      color: #00796b;
+      margin-bottom: 30px;
+      font-size: 3em;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+      animation: pulse 2s infinite;
+    }
+    .menu-button {
+      padding: 15px 40px;
+      font-size: 20px;
+      margin: 15px;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      background: linear-gradient(45deg, #26a69a, #00796b);
+      color: white;
+      animation: slideIn 0.5s ease-out;
+    }
+    .menu-button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+    }
+    .map-button {
+      background: linear-gradient(45deg, #66bb6a, #43a047);
+    }
+    #map-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    #map {
+      flex: 1;
+      border-radius: 10px;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+    }
+    .button-container {
+      display: flex;
+      gap: 15px;
+      padding: 15px;
+      background: white;
+      border-top: 1px solid #e0e0e0;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+      border-radius: 0 0 10px 10px;
+    }
+    .button-container button {
+      padding: 10px 15px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #calculer {
+      background-color: #4CAF50;
+      color: white;
+      font-weight: bold;
+    }
+    #reset {
+      background-color: #f44336;
+      color: white;
+      font-weight: bold;
+    }
+    #distance-totale {
+      padding: 10px;
+      font-weight: bold;
+      color: #333;
+    }
+    #visualization-container {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+      padding: 30px;
+      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      position: relative;
+      min-height: 100vh;
+    }
+    
+    canvas {
+      border: none;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      background: white;
+      margin: 20px 0;
+    }
+    
+    .controls {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      padding: 15px;
+      background: white;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .controls button {
+      padding: 12px 25px;
+      font-size: 16px;
+      border: none;
+      border-radius: 15px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: linear-gradient(45deg, #3498db, #2980b9);
+      color: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      width: auto;
+      min-width: 120px;
+    }
+    
+    .controls button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+    }
+    
+    #result {
+      margin-top: 15px;
+      text-align: center;
+    }
+    /* Animations pour le menu */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    @keyframes slideIn {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(0); }
+    }
+
+    /* Style du menu avec animations */
+    #menu {
+        animation: fadeIn 1s ease-out;
+    }
+
+    #menu h1 {
+        animation: pulse 2s infinite;
+    }
+
+    .menu-button {
+        animation: slideIn 0.5s ease-out;
+        transition: all 0.3s ease;
+    }
+
+    .marker-pulse {
+        animation: markerPulse 1.5s infinite;
+    }
+
+    @keyframes markerPulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.3); opacity: 0.7; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
+
+    .polyline-animate {
+        stroke-dasharray: 8;
+        animation: dashdraw 20s linear infinite;
+    }
+
+    @keyframes dashdraw {
+        to { stroke-dashoffset: 100; }
+    }
+
+    /* Animation pour le canvas */
+    .vertex-highlight {
+        animation: vertexGlow 1s infinite alternate;
+    }
+
+    @keyframes vertexGlow {
+        from { box-shadow: 0 0 5px #4CAF50; }
+        to { box-shadow: 0 0 20px #4CAF50; }
+    }
+  </style>
+</head>
+<body>
+  <div id="menu">
+    <h1>KRUSKAL</h1>
+    <button class="menu-button map-button" onclick="afficherCarte()">Accéder à la carte</button>
+    <button class="menu-button" onclick="afficherVisualisation()">Exercice Kruskal</button>
+  </div>
+
+  <div id="map-container">
+    <div id="map"></div>
+    <div class="button-container">
+      <button id="calculer">Calculer le trajet optimal</button>
+      <button id="reset">Réinitialiser</button>
+      <button onclick="afficherMenu()">Retour au menu</button>
+      <span id="distance-totale"></span>
+    </div>
+  </div>
+
+  <div id="visualization-container">
+    <h2>Visualisation de l'algorithme de Kruskal</h2>
+    <p>Clic gauche pour ajouter un sommet, clic droit pour créer une arête entre deux sommets</p>
+    <canvas id="graphCanvas" width="800" height="600"></canvas>
+    <div class="controls">
+      <button onclick="resetCanvas()">Réinitialiser</button>
+      <button onclick="calculateVisualKruskal()">Calculer Kruskal</button>
+      <button onclick="afficherMenu()">Retour au menu</button>
+    </div>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    let carte;
+    const points = [];
+    const arêtes = [];
+    const marqueurs = [];
+    let polylignes = [];
+    const cacheDistances = new Map();
+
+    const canvas = document.getElementById('graphCanvas');
+    const ctx = canvas.getContext('2d');
+    const vertices = [];
+    const edges = [];
+    let selectedVertex = null;
+
+    
+    function afficherMenu() {
+      document.getElementById('menu').style.display = 'flex';
+      document.getElementById('map-container').style.display = 'none';
+      document.getElementById('visualization-container').style.display = 'none';
+    }
+
+    
+    function afficherCarte() {
+      document.getElementById('menu').style.display = 'none';
+      document.getElementById('map-container').style.display = 'flex';
+      document.getElementById('visualization-container').style.display = 'none';
+
+      if (!carte) {
+        initialiserCarte();
+      } else {
+        setTimeout(() => carte.invalidateSize(), 100);
+      }
+    }
+
+
+    function initialiserCarte() {
+      carte = L.map('map').setView([31.7917, -7.0926], 7); // Maroc
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(carte);
+
+      carte.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        points.push([lat, lng]);
+
+        const marqueur = L.marker([lat, lng]).addTo(carte);
+        marqueurs.push(marqueur);
+
+        const indexPoint = points.length;
+        marqueur.bindPopup(`Point ${indexPoint}`).openPopup();
+      });
+
+      document.getElementById('calculer').addEventListener('click', calculerTrajetOptimal);
+      document.getElementById('reset').addEventListener('click', réinitialiserCarte);
+    }
+
+
+    async function obtenirDistanceRoute(point1, point2) {
+      const clé = `${point1}-${point2}`;
+      if (cacheDistances.has(clé)) return cacheDistances.get(clé);
+
+      const [lat1, lng1] = point1;
+      const [lat2, lng2] = point2;
+      const url = `https://router.project-osrm.org/route/v1/driving/${lng1},${lat1};${lng2},${lat2}?overview=false`;
+
+      try {
+        const réponse = await fetch(url);
+        const données = await réponse.json();
+        
+        if (données.routes && données.routes.length > 0) {
+          const distance = données.routes[0].distance;
+          cacheDistances.set(clé, distance);
+          return distance;
+        }
+      } catch (err) {
+        console.error("Erreur lors de la récupération de la distance :", err);
+      }
+
+      cacheDistances.set(clé, Infinity);
+      return Infinity;
+    }
+
+
+    async function calculerArêtes() {
+      arêtes.length = 0;
+
+      for (let i = 0; i < points.length; i++) {
+        for (let j = i + 1; j < points.length; j++) {
+          const poids = await obtenirDistanceRoute(points[i], points[j]);
+          if (poids < Infinity) {
+            arêtes.push({ source: i, cible: j, poids });
+          }
+        }
+      }
+    }
+
+    function kruskalMap(arêtes, numPoints) {
+      arêtes.sort((a, b) => a.poids - b.poids);
+
+      const parent = Array.from({ length: numPoints }, (_, index) => index);
+      const rang = Array(numPoints).fill(0);
+
+      const trouver = (nœud) => {
+        if (parent[nœud] !== nœud) {
+          parent[nœud] = trouver(parent[nœud]);
+        }
+        return parent[nœud];
+      };
+
+      const unir = (nœud1, nœud2) => {
+        const racine1 = trouver(nœud1);
+        const racine2 = trouver(nœud2);
+
+        if (racine1 !== racine2) {
+          if (rang[racine1] > rang[racine2]) {
+            parent[racine2] = racine1;
+          } else if (rang[racine1] < rang[racine2]) {
+            parent[racine1] = racine2;
+          } else {
+            parent[racine2] = racine1;
+            rang[racine1]++;
+          }
+        }
+      };
+
+      const arbreCouvrantMin = [];
+      arêtes.forEach((arête) => {
+        const { source, cible } = arête;
+        if (trouver(source) !== trouver(cible)) {
+          arbreCouvrantMin.push(arête);
+          unir(source, cible);
+        }
+      });
+
+      return arbreCouvrantMin;
+    }
+
+  
+
+
+    function ajouterMarqueurAnimé(lat, lng) {
+        const marqueur = L.marker([lat, lng], {
+            icon: L.divIcon({
+                className: 'marker-pulse',
+                html: '<div></div>',
+                iconSize: [20, 20]
+            })
+        }).addTo(carte);
+
+
+        setTimeout(() => {
+            marqueur.setOpacity(1);
+        }, 300);
+
+        return marqueur;
+    }
+
+    function dessinerLigneAnimée(point1, point2) {
+        const polyline = L.polyline([point1, point2], {
+            color: '#4CAF50',
+            weight: 3,
+            className: 'polyline-animate'
+        }).addTo(carte);
+
+        return polyline;
+    }
+
+  
+    async function calculerTrajetOptimal() {
+        if (points.length < 2) {
+            alert('Veuillez ajouter au moins deux points.');
+            return;
+        }
+
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'loading-animation';
+        document.body.appendChild(loadingDiv);
+
+        try {
+            await calculerArêtes();
+            const arbreCouvrantMin = kruskalMap(arêtes, points.length);
+
+            polylignes.forEach((polyline) => {
+                polyline.setOpacity(0);
+                setTimeout(() => carte.removeLayer(polyline), 500);
+            });
+            polylignes.length = 0;
+
+            let delai = 0;
+            const distanceTotale = arbreCouvrantMin.reduce((total, { poids }) => total + poids, 0);
+            
+          
+            const visited = new Set();
+            const pathPoints = [];
+
+            const dfs = (node) => {
+                visited.add(node);
+                pathPoints.push(node + 1); // Convert to 1-based index for display
+                for (const edge of arbreCouvrantMin) {
+                    if (edge.source === node && !visited.has(edge.cible)) {
+                        dfs(edge.cible);
+                    } else if (edge.cible === node && !visited.has(edge.source)) {
+                        dfs(edge.source);
+                    }
+                }
+            };
+
+            dfs(0); 
+
+            for (const { source, cible } of arbreCouvrantMin) {
+                setTimeout(() => {
+                    const polyline = dessinerLigneAnimée(points[source], points[cible]);
+                    polylignes.push(polyline);
+                }, delai);
+                delai += 500;
+            }
+
+            const distanceKm = (distanceTotale / 1000).toFixed(2);
+            const distanceElement = document.getElementById('distance-totale');
+            let compteur = 0;
+            const durée = 2000; // 2 secondes
+            const pas = distanceKm / (durée / 50);
+
+            const animerDistance = setInterval(() => {
+                compteur += pas;
+                if (compteur >= distanceKm) {
+                    compteur = distanceKm;
+                    clearInterval(animerDistance);
+                }
+                
+                distanceElement.textContent = `Distance totale : ${compteur.toFixed(2)} km, Chemin: ${pathPoints.join('->')}`;
+            }, 50);
+
+        } finally {
+        
+            document.body.removeChild(loadingDiv);
+        }
+    }
+
+
+    function réinitialiserCarte() {
+      points.length = 0;
+      arêtes.length = 0;
+
+      marqueurs.forEach((marqueur) => carte.removeLayer(marqueur));
+      marqueurs.length = 0;
+
+      polylignes.forEach((polyline) => carte.removeLayer(polyline));
+      polylignes.length = 0;
+
+
+      document.getElementById('distance-totale').textContent = '';
+    }
+
+    function initializeCanvasEvents() {
+      canvas.addEventListener('click', (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const offsetX = event.clientX - rect.left;
+        const offsetY = event.clientY - rect.top;
+        
+        if (findVertex(offsetX, offsetY)) {
+          return; 
+        }
+
+        const vertexIndex = vertices.length + 1;
+        vertices.push({ x: offsetX, y: offsetY, label: `V${vertexIndex}` });
+        drawVertex(offsetX, offsetY, `V${vertexIndex}`);
+      });
+
+      canvas.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const offsetX = event.clientX - rect.left;
+        const offsetY = event.clientY - rect.top;
+        
+        const clickedVertex = findVertex(offsetX, offsetY);
+
+        if (!clickedVertex) return;
+
+        if (!selectedVertex) {
+          selectedVertex = clickedVertex;
+          highlightVertex(clickedVertex.x, clickedVertex.y);
+        } else {
+          if (clickedVertex !== selectedVertex) {
+            const weight = prompt(`Entrez le poids de l'arête entre ${selectedVertex.label} et ${clickedVertex.label}:`);
+            if (weight && !isNaN(weight)) {
+              edges.push({
+                source: selectedVertex,
+                target: clickedVertex,
+                weight: parseFloat(weight),
+              });
+              drawEdge(selectedVertex, clickedVertex, weight);
+            }
+          }
+          selectedVertex = null;
+          clearCanvas();
+          redrawGraph();
+        }
+      });
+    }
+
+
+    function afficherVisualisation() {
+      document.getElementById('menu').style.display = 'none';
+      document.getElementById('map-container').style.display = 'none';
+      document.getElementById('visualization-container').style.display = 'flex';
+      initializeCanvasEvents(); 
+    }
+
+    function drawVertex(x, y, label) {
+      ctx.beginPath();
+      ctx.arc(x, y, 20, 0, 2 * Math.PI);
+      ctx.fillStyle = 'lightblue';
+      ctx.fill();
+      ctx.stroke();
+      ctx.closePath();
+
+      ctx.fillStyle = 'black';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, x, y);
+    }
+
+    function findVertex(x, y) {
+      return vertices.find(v => Math.hypot(v.x - x, v.y - y) < 20);
+    }
+
+    function highlightVertex(x, y) {
+      ctx.beginPath();
+      ctx.arc(x, y, 24, 0, 2 * Math.PI);
+      ctx.strokeStyle = 'red';
+      ctx.stroke();
+      ctx.closePath();
+    }
+
+    function drawEdge(v1, v2, weight) {
+      ctx.beginPath();
+      ctx.moveTo(v1.x, v1.y);
+      ctx.lineTo(v2.x, v2.y);
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+
+      const midX = (v1.x + v2.x) / 2;
+      const midY = (v1.y + v2.y) / 2;
+
+      ctx.fillStyle = 'white';
+      ctx.fillRect(midX - 15, midY - 10, 30, 20);
+      
+      // Texte du poids
+      ctx.fillStyle = 'black';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(weight, midX, midY);
+    }
+
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function redrawGraph() {
+      vertices.forEach(v => drawVertex(v.x, v.y, v.label));
+      edges.forEach(({ source, target, weight }) => drawEdge(source, target, weight));
+    }
+
+    function resetCanvas() {
+      clearCanvas();
+      vertices.length = 0;
+      edges.length = 0;
+      selectedVertex = null;
+      document.getElementById('result').innerHTML = '';
+    }
+
+    
+    function kruskal(edges, numVertices) {
+
+      const sortedEdges = [...edges].sort((a, b) => a.weight - b.weight);
+      
+
+      const parent = {};
+      const rank = {};
+      vertices.forEach(v => {
+        parent[v.label] = v.label;
+        rank[v.label] = 0;
+      });
+
+      function find(vertex) {
+        if (parent[vertex] !== vertex) {
+          parent[vertex] = find(parent[vertex]);
+        }
+        return parent[vertex];
+      }
+
+
+      function union(x, y) {
+        const rootX = find(x);
+        const rootY = find(y);
+
+        if (rootX !== rootY) {
+          if (rank[rootX] < rank[rootY]) {
+            parent[rootX] = rootY;
+          } else if (rank[rootX] > rank[rootY]) {
+            parent[rootY] = rootX;
+          } else {
+            parent[rootY] = rootX;
+            rank[rootX]++;
+          }
+        }
+      }
+
+      const mst = [];
+      sortedEdges.forEach(edge => {
+        const sourceRoot = find(edge.source.label);
+        const targetRoot = find(edge.target.label);
+
+        if (sourceRoot !== targetRoot) {
+          mst.push(edge);
+          union(edge.source.label, edge.target.label);
+        }
+      });
+
+      return mst;
+    }
+
+    function calculateVisualKruskal() {
+      if (vertices.length < 2 || edges.length < 1) {
+        alert('Ajoutez au moins deux sommets et une arête.');
+        return;
+      }
+
+      const mst = kruskal(edges, vertices.length);
+      const totalWeight = mst.reduce((sum, edge) => sum + edge.weight, 0);
+
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = `
+        <h3>Résultat de l'algorithme de Kruskal</h3>
+        <p>Arêtes de l'arbre couvrant minimal :</p>
+        <ul>
+          ${mst.map(edge => `
+            <li>${edge.source.label} - ${edge.target.label} (poids: ${edge.weight})</li>
+          `).join('')}
+        </ul>
+        <p><strong>Poids total du chemin : ${totalWeight}</strong></p>
+      `;
+
+      
+      clearCanvas();
+      
+      
+      edges.forEach(edge => {
+        ctx.beginPath();
+        ctx.moveTo(edge.source.x, edge.source.y);
+        ctx.lineTo(edge.target.x, edge.target.y);
+        ctx.strokeStyle = '#cccccc';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+       
+        const midX = (edge.source.x + edge.target.x) / 2;
+        const midY = (edge.source.y + edge.target.y) / 2;
+        ctx.fillStyle = '#666666';
+        ctx.fillText(edge.weight, midX, midY);
+      });
+
+     
+      mst.forEach(edge => {
+        
+        ctx.beginPath();
+        ctx.moveTo(edge.source.x, edge.source.y);
+        ctx.lineTo(edge.target.x, edge.target.y);
+        ctx.strokeStyle = '#2196F3';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+       
+        const midX = (edge.source.x + edge.target.x) / 2;
+        const midY = (edge.source.y + edge.target.y) / 2;
+        ctx.fillStyle = '#2196F3';
+        ctx.fillText(edge.weight, midX, midY);
+      });
+
+    
+      vertices.forEach(vertex => {
+        ctx.beginPath();
+        ctx.arc(vertex.x, vertex.y, 20, 0, 2 * Math.PI);
+        ctx.fillStyle = 'lightblue';
+        ctx.fill();
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Étiquette du sommet
+        ctx.fillStyle = 'black';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(vertex.label, vertex.x, vertex.y);
+      });
+    }
+
+ 
+    function animerSommet(x, y, label) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, 20, 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(76, 175, 80, 0.3)';
+        ctx.fill();
+        ctx.restore();
+
+        let rayon = 20;
+        const animation = setInterval(() => {
+            ctx.clearRect(x - rayon - 1, y - rayon - 1, 
+                         rayon * 2 + 2, rayon * 2 + 2);
+            rayon += 1;
+            ctx.beginPath();
+            ctx.arc(x, y, rayon, 0, 2 * Math.PI);
+            ctx.strokeStyle = `rgba(76, 175, 80, ${1 - rayon/50})`;
+            ctx.stroke();
+            if (rayon > 50) {
+                clearInterval(animation);
+                drawVertex(x, y, label);
+            }
+        }, 20);
+    }
+
+   
+    function animerArête(v1, v2, weight) {
+        const dx = v2.x - v1.x;
+        const dy = v2.y - v1.y;
+        let progress = 0;
+        
+        const animation = setInterval(() => {
+            ctx.beginPath();
+            ctx.moveTo(v1.x, v1.y);
+            ctx.lineTo(v1.x + dx * progress, v1.y + dy * progress);
+            ctx.strokeStyle = '#4CAF50';
+            ctx.stroke();
+            
+            progress += 0.02;
+            if (progress >= 1) {
+                clearInterval(animation);
+                drawEdge(v1, v2, weight);
+            }
+        }, 20);
+    }
+
+    
+    function animerKruskal(mst) {
+        let index = 0;
+        const animation = setInterval(() => {
+            if (index >= mst.length) {
+                clearInterval(animation);
+                return;
+            }
+            
+            const edge = mst[index];
+            animerArête(edge.source, edge.target, edge.weight);
+            index++;
+        }, 1000);
+    }
+  </script>
+</body>
+</html>
